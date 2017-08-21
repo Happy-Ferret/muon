@@ -1,3 +1,23 @@
+diff --git a/base/logging.h b/base/logging.h
+index 96ef7c3d8fb333efabe1cb931dd631623ae07ae4..14bbd21e1fb08da305e78cff5f8e351ec9ad3b2d 100644
+--- a/base/logging.h
++++ b/base/logging.h
+@@ -757,11 +757,15 @@ DEFINE_CHECK_OP_IMPL(GT, > )
+ #define CHECK_GE(val1, val2) CHECK_OP(GE, >=, val1, val2)
+ #define CHECK_GT(val1, val2) CHECK_OP(GT, > , val1, val2)
+ 
++#if defined(DCHECK_ALWAYS_ON) && !DCHECK_ALWAYS_ON
++#define DCHECK_IS_ON() 0
++#else
+ #if defined(NDEBUG) && !defined(DCHECK_ALWAYS_ON)
+ #define DCHECK_IS_ON() 0
+ #else
+ #define DCHECK_IS_ON() 1
+ #endif
++#endif
+ 
+ // Definitions for DLOG et al.
+ 
 diff --git a/base/threading/thread_restrictions.h b/base/threading/thread_restrictions.h
 index e9f801778ea0edf81a316d7eeb0a9c436c3cadcd..9a84622797d063d206c3eb25d09e09bb55f496ea 100644
 --- a/base/threading/thread_restrictions.h
@@ -2140,6 +2160,28 @@ index c612c4a36d9718cefa1f99d77adf2f9c0710b03a..4d34b69dbb94087e27f1503bb785948c
    return switches::autoplay::kUserGestureRequiredPolicy;
  #else
    return switches::autoplay::kNoUserGestureRequiredPolicy;
+diff --git a/net/BUILD.gn b/net/BUILD.gn
+index 62145ac928a694a37cb9fe0e3f48e6cd3ea0b434..f70a0404af0024118cdbdd6a15cf76f41ef8179f 100644
+--- a/net/BUILD.gn
++++ b/net/BUILD.gn
+@@ -65,7 +65,7 @@ config("net_internal_config") {
+   if (use_kerberos) {
+     defines += [ "USE_KERBEROS" ]
+     if (is_android) {
+-      include_dirs = [ "/usr/include/kerberosV" ]
++      include_dirs += [ "/usr/include/kerberosV" ]
+     }
+   }
+ 
+@@ -1737,6 +1737,8 @@ component("net") {
+       "//third_party/zlib",
+     ]
+ 
++    include_dirs = [ "$root_gen_dir" ]
++
+     if (!use_kerberos) {
+       sources -= [
+         "http/http_auth_handler_negotiate.cc",
 diff --git a/net/http/http_util.cc b/net/http/http_util.cc
 index 95ba606a7e0fa239a9c8c62f19591ec6bb39097a..b4fece0421b282f4042250108426eb502ff9b4c9 100644
 --- a/net/http/http_util.cc
