@@ -80,8 +80,6 @@ executable("electron_exe") {
     "//electron:browser_dependencies",
     "//electron:child_dependencies",
     "//base",
-    "//breakpad:breakpad_handler",
-    "//breakpad:breakpad_sender",
     "//chrome/browser:chrome_process_finder",
     "//chrome/common:constants",
     "//chrome/common:version_header",

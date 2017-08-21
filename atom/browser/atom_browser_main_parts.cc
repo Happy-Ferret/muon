@@ -44,6 +44,7 @@
 #include "content/public/common/content_switches.h"
 #include "device/geolocation/geolocation_delegate.h"
 #include "device/geolocation/geolocation_provider.h"
+#include "muon/app/muon_crash_reporter_client.h"
 #include "v8/include/v8.h"
 #include "v8/include/v8-debug.h"
 
@@ -66,6 +67,14 @@
 #include "ui/views/widget/desktop_aura/desktop_screen.h"
 #endif
 
+#if defined(OS_WIN)
+#include "base/win/pe_image.h"
+#include "base/win/registry.h"
+#include "base/win/win_util.h"
+#include "base/win/windows_version.h"
+#include "base/win/wrapped_window_proc.h"
+#endif
+
 namespace atom {
 
 namespace {
@@ -76,6 +85,20 @@ OSStatus KeychainCallback(SecKeychainEvent keychain_event,
   return noErr;
 }
 #endif  // defined(OS_MACOSX)
+
+#if defined(OS_WIN)
+void InitializeWindowProcExceptions() {
+  // Get the breakpad pointer
+  base::win::WinProcExceptionFilter exception_filter =
+      reinterpret_cast<base::win::WinProcExceptionFilter>(::GetProcAddress(
+          ::GetModuleHandle(chrome::kChromeElfDllName), "CrashForException"));
+  CHECK(exception_filter);
+  exception_filter = base::win::SetWinProcExceptionFilter(exception_filter);
+  DCHECK(!exception_filter);
+}
+#endif  // defined (OS_WIN)
+
+}  // namespace
 
 // A provider of Geolocation services to override AccessTokenStore.
 class AtomGeolocationDelegate : public device::GeolocationDelegate {
@@ -208,6 +231,8 @@ int AtomBrowserMainParts::PreCreateThreads() {
 
   fake_browser_process_->PreCreateThreads();
 
+  MuonCrashReporterClient::InitCrashReporting();
+
 #if defined(USE_AURA)
   // The screen may have already been set in test initialization.
   if (!display::Screen::GetScreen())
@@ -243,6 +268,10 @@ void AtomBrowserMainParts::IdleHandler() {
 #if defined(OS_WIN)
 void AtomBrowserMainParts::PreMainMessageLoopStart() {
   brightray::BrowserMainParts::PreMainMessageLoopStart();
+  if (!parameters_.ui_task) {
+    // Make sure that we know how to handle exceptions from the message loop.
+    InitializeWindowProcExceptions();
+  }
 }
 #endif
 

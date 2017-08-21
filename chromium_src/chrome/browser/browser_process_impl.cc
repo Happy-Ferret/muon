@@ -220,6 +220,8 @@ void BrowserProcessImpl::CreateLocalState() {
 #if defined(OS_WIN)
   password_manager::PasswordManager::RegisterLocalPrefs(pref_registry.get());
 #endif
+  pref_registry->RegisterBooleanPref(
+      metrics::prefs::kMetricsReportingEnabled, false);
 
   sync_preferences::PrefServiceSyncableFactory factory;
   factory.set_async(false);
