@@ -19,6 +19,10 @@
 #include "content/public/app/content_main.h"
 #include "content/public/common/content_switches.h"
 
+#if defined(OS_POSIX) && !defined(OS_MACOSX)
+#include "base/nix/xdg_util.h"
+#endif
+
 #if defined(OS_WIN)
 #include <windows.h>  // windows.h must be included first
 
@@ -55,7 +59,6 @@ bool HasValidWindowsPrefetchArgument(const base::CommandLine& command_line) {
   }
   return false;
 }
-
 #endif  // defined(OS_WIN)
 
 #if defined(OS_MACOSX)
@@ -88,9 +91,15 @@ int main(int argc, const char* argv[]) {
       base::CommandLine::ForCurrentProcess();
 
   if (command_line->HasSwitch("user-data-dir-name")) {
-    base::FilePath user_data_dir;
-    PathService::Get(base::DIR_APP_DATA, &user_data_dir);
     std::unique_ptr<base::Environment> environment(base::Environment::Create());
+    base::FilePath user_data_dir;
+#if defined(OS_WIN) || defined(OS_MACOSX)
+    PathService::Get(base::DIR_APP_DATA, &user_data_dir);
+#else
+    user_data_dir = GetXDGDirectory(env.get(),
+                                    base::nix::kXdgConfigHomeEnvVar,
+                                    base::nix::kDotConfigDir);
+#endif
     user_data_dir = user_data_dir.Append(
         command_line->GetSwitchValuePath("user-data-dir-name"));
     environment->SetVar("CHROME_USER_DATA_DIR", user_data_dir.AsUTF8Unsafe());
