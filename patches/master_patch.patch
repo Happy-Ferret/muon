@@ -479,7 +479,7 @@ index 7f659bdcdccbce1044e3ee2f2d9295cdce20b02d..b22a1518d28b641ff358d00013536f68
  
  process_version("version_header") {
 diff --git a/chrome/common/chrome_constants.cc b/chrome/common/chrome_constants.cc
-index 94cdc2aeb7398a433b9afcfbbcfa87dd1e57b65d..7ce8db49362e499abcd93298468257cff9a32116 100644
+index 94cdc2aeb7398a433b9afcfbbcfa87dd1e57b65d..9263f1283ffe964eec8a479f7a1b7de6b5162863 100644
 --- a/chrome/common/chrome_constants.cc
 +++ b/chrome/common/chrome_constants.cc
 @@ -10,11 +10,11 @@
@@ -502,16 +502,16 @@ index 94cdc2aeb7398a433b9afcfbbcfa87dd1e57b65d..7ce8db49362e499abcd93298468257cf
  #if defined(OS_WIN)
  const base::FilePath::CharType kBrowserProcessExecutableNameChromium[] =
 -    FPL("chrome.exe");
-+    FPL("Brave.exe");
++    FPL("brave.exe");
  const base::FilePath::CharType kBrowserProcessExecutableName[] =
 -    FPL("chrome.exe");
-+    FPL("Brave.exe");
++    FPL("brave.exe");
  const base::FilePath::CharType kHelperProcessExecutableNameChromium[] =
 -    FPL("chrome.exe");
-+    FPL("Brave.exe");
++    FPL("brave.exe");
  const base::FilePath::CharType kHelperProcessExecutableName[] =
 -    FPL("chrome.exe");
-+    FPL("Brave.exe");
++    FPL("brave.exe");
  #elif defined(OS_MACOSX)
  const base::FilePath::CharType kBrowserProcessExecutableNameChromium[] =
      FPL(CHROMIUM_PRODUCT_STRING);
@@ -540,16 +540,16 @@ index 94cdc2aeb7398a433b9afcfbbcfa87dd1e57b65d..7ce8db49362e499abcd93298468257cf
  #if defined(OS_WIN)
  const base::FilePath::CharType kBrowserProcessExecutablePathChromium[] =
 -    FPL("chrome.exe");
-+    FPL("Brave.exe");
++    FPL("brave.exe");
  const base::FilePath::CharType kBrowserProcessExecutablePath[] =
 -    FPL("chrome.exe");
-+    FPL("Brave.exe");
++    FPL("brave.exe");
  const base::FilePath::CharType kHelperProcessExecutablePathChromium[] =
 -    FPL("chrome.exe");
-+    FPL("Brave.exe");
++    FPL("brave.exe");
  const base::FilePath::CharType kHelperProcessExecutablePath[] =
 -    FPL("chrome.exe");
-+    FPL("Brave.exe");
++    FPL("brave.exe");
  #elif defined(OS_MACOSX)
  const base::FilePath::CharType kBrowserProcessExecutablePathChromium[] =
      FPL(CHROMIUM_PRODUCT_STRING ".app/Contents/MacOS/" CHROMIUM_PRODUCT_STRING);
@@ -581,17 +581,28 @@ index 94cdc2aeb7398a433b9afcfbbcfa87dd1e57b65d..7ce8db49362e499abcd93298468257cf
  #endif  // OS_*
  
  #if defined(OS_MACOSX)
-@@ -121,8 +121,8 @@ const base::FilePath::CharType kFrameworkExecutableName[] =
+@@ -121,7 +121,7 @@ const base::FilePath::CharType kFrameworkExecutableName[] =
  #endif  // OS_MACOSX
  
  #if defined(OS_WIN)
 -const base::FilePath::CharType kBrowserResourcesDll[] = FPL("chrome.dll");
--const base::FilePath::CharType kChromeElfDllName[] = FPL("chrome_elf.dll");
-+const base::FilePath::CharType kBrowserResourcesDll[] = FPL("Brave.dll");
-+const base::FilePath::CharType kChromeElfDllName[] = FPL("Brave_elf.dll");
++const base::FilePath::CharType kBrowserResourcesDll[] = FPL("brave.dll");
+ const base::FilePath::CharType kChromeElfDllName[] = FPL("chrome_elf.dll");
  const base::FilePath::CharType kStatusTrayWindowClass[] =
      FPL("Chrome_StatusTrayWindow");
- #endif  // defined(OS_WIN)
+diff --git a/chrome/common/chrome_paths_linux.cc b/chrome/common/chrome_paths_linux.cc
+index aa26cc9bbb90e53d727af4f3d55ee6472b766654..b2bb03b44b117105a9bc1693fc6e79571b801396 100644
+--- a/chrome/common/chrome_paths_linux.cc
++++ b/chrome/common/chrome_paths_linux.cc
+@@ -66,7 +66,7 @@ bool GetDefaultUserDataDirectory(base::FilePath* result) {
+   base::FilePath config_dir(GetXDGDirectory(env.get(),
+                                             kXdgConfigHomeEnvVar,
+                                             kDotConfigDir));
+-#if defined(GOOGLE_CHROME_BUILD)
++#if defined(GOOGLE_CHROME_BUILD) || !defined(MUON_CHROMIUM_BUILD)
+   *result = config_dir.Append("google-chrome");
+ #else
+   *result = config_dir.Append("chromium");
 diff --git a/chrome/common/chrome_paths_mac.mm b/chrome/common/chrome_paths_mac.mm
 index d0bbbf72ff0e356e424dc280eeb1441c990b5770..8e96ea5706f87ea98ba55fcb583b16a8035fa903 100644
 --- a/chrome/common/chrome_paths_mac.mm
@@ -757,6 +768,21 @@ index efd272e706ba56b748e4b76b96d76cbd03aa07ac..051851c40e6b721035c6b57ed5b35962
      @"Google Chrome": @"Google Chrome",
      @"Google Chrome Canary": @"Google Chrome",
    };
+diff --git a/chrome/install_static/user_data_dir.cc b/chrome/install_static/user_data_dir.cc
+index b5f779d03cfec8ce1db9354d85020acaa10c3a5b..04db5469f8b3705bbf0c36fe6eef5ce1aeaa3355 100644
+--- a/chrome/install_static/user_data_dir.cc
++++ b/chrome/install_static/user_data_dir.cc
+@@ -74,6 +74,10 @@ bool GetUserDataDirectoryUsingProcessCommandLine(
+ // Unify this with the Browser Distribution code.
+ bool GetDefaultUserDataDirectory(const InstallConstants& mode,
+                                  std::wstring* result) {
++#if !defined(MUON_CHROMIUM_BUILD)
++  result->append(GetEnvironmentString16(L"CHROME_USER_DATA_DIR"));
++  return true;
++#endif
+   // This environment variable should be set on Windows Vista and later
+   // (https://msdn.microsoft.com/library/windows/desktop/dd378457.aspx).
+   std::wstring user_data_dir = GetEnvironmentString16(L"LOCALAPPDATA");
 diff --git a/chrome/installer/util/prebuild/create_string_rc.py b/chrome/installer/util/prebuild/create_string_rc.py
 index ce885e05e62af97777314397c79d1f05aa0dc36a..c2b8a35bfdbd6a23ce288b2007dcb8ce7fee8657 100755
 --- a/chrome/installer/util/prebuild/create_string_rc.py

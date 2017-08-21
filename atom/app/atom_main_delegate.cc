@@ -23,15 +23,15 @@
 #include "base/logging.h"
 #include "base/path_service.h"
 #include "base/trace_event/trace_log.h"
-#include "brave/common/brave_paths.h"
-#include "brightray/browser/brightray_paths.h"
 #include "brightray/common/application_info.h"
-#include "browser/brightray_paths.h"
+#include "chrome/child/child_profiling.h"
 #include "chrome/common/chrome_constants.h"
 #include "chrome/common/chrome_paths.h"
+#include "chrome/common/chrome_paths_internal.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/crash_keys.h"
 #include "chrome/common/logging_chrome.h"
+#include "chrome/common/profiling.h"
 #include "chrome/common/trace_event_args_whitelist.h"
 #include "components/component_updater/component_updater_paths.h"
 #include "components/content_settings/core/common/content_settings_pattern.h"
@@ -49,7 +49,6 @@
 #include <malloc.h>
 #include <algorithm>
 #include "base/debug/close_handle_hook_win.h"
-#include "chrome/browser/downgrade/user_data_downgrade.h"
 #include "chrome/child/v8_breakpad_support_win.h"
 #include "chrome/common/child_process_logging.h"
 #include "chrome/install_static/install_details.h"
@@ -60,7 +59,6 @@
 #endif
 
 #if defined(OS_MACOSX)
-#include "base/mac/foundation_util.h"
 #include "chrome/app/chrome_main_mac.h"
 #include "chrome/browser/mac/relauncher.h"
 #include "chrome/common/mac/cfbundle_blocker.h"
@@ -144,80 +142,80 @@ void InitLogging(const std::string& process_type) {
 }
 
 base::FilePath InitializeUserDataDir() {
-  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+  const base::CommandLine& command_line =
+      *base::CommandLine::ForCurrentProcess();
   base::FilePath user_data_dir;
+#if defined(OS_WIN)
+  wchar_t user_data_dir_buf[MAX_PATH], invalid_user_data_dir_buf[MAX_PATH];
 
-  // first check the env
-  std::string user_data_dir_string;
-  std::unique_ptr<base::Environment> environment(base::Environment::Create());
-  if (environment->GetVar("BRAVE_USER_DATA_DIR", &user_data_dir_string) &&
-      base::IsStringUTF8(user_data_dir_string)) {
-    user_data_dir = base::FilePath::FromUTF8Unsafe(user_data_dir_string);
-    command_line->AppendSwitchPath(switches::kUserDataDir, user_data_dir);
-  }
-
-  // next check the user-data-dir switch
-  if (user_data_dir.empty() ||
-      command_line->HasSwitch(switches::kUserDataDir)) {
+  using GetUserDataDirectoryThunkFunction =
+      void (*)(wchar_t*, size_t, wchar_t*, size_t);
+  HMODULE elf_module = GetModuleHandle(chrome::kChromeElfDllName);
+  if (elf_module) {
+    // If we're in a test, chrome_elf won't be loaded.
+    GetUserDataDirectoryThunkFunction get_user_data_directory_thunk =
+        reinterpret_cast<GetUserDataDirectoryThunkFunction>(
+            GetProcAddress(elf_module, "GetUserDataDirectoryThunk"));
+    get_user_data_directory_thunk(
+        user_data_dir_buf, arraysize(user_data_dir_buf),
+        invalid_user_data_dir_buf, arraysize(invalid_user_data_dir_buf));
+    if (invalid_user_data_dir_buf[0] == 0)
+      user_data_dir = base::FilePath(user_data_dir_buf);
+  } else {
+    // In tests, just respect the flag if given.
     user_data_dir =
-      command_line->GetSwitchValuePath(switches::kUserDataDir);
-    if (!user_data_dir.empty() && !user_data_dir.IsAbsolute()) {
-      base::FilePath app_data_dir;
-      brave::GetDefaultAppDataDirectory(&app_data_dir);
-      user_data_dir = app_data_dir.Append(user_data_dir);
+        command_line.GetSwitchValuePath(switches::kUserDataDir);
+    if (!user_data_dir.empty() && user_data_dir.EndsWithSeparator())
+      user_data_dir = user_data_dir.StripTrailingSeparators();
+  }
+#else  // OS_WIN
+  user_data_dir =
+      command_line.GetSwitchValuePath(switches::kUserDataDir);
+
+  if (user_data_dir.empty()) {
+    std::string user_data_dir_string;
+    std::unique_ptr<base::Environment> environment(base::Environment::Create());
+    if (environment->GetVar("CHROME_USER_DATA_DIR", &user_data_dir_string) &&
+        base::IsStringUTF8(user_data_dir_string)) {
+      user_data_dir = base::FilePath::FromUTF8Unsafe(user_data_dir_string);
     }
   }
+#endif  // OS_WIN
 
-  // On Windows, trailing separators leave Chrome in a bad state.
-  // See crbug.com/464616.
-  if (user_data_dir.EndsWithSeparator())
-    user_data_dir = user_data_dir.StripTrailingSeparators();
-
-  if (!user_data_dir.empty())
-    PathService::OverrideAndCreateIfNeeded(brightray::DIR_USER_DATA,
-          user_data_dir, false, true);
-
-  // TODO(bridiver) Warn and fail early if the process fails
-  // to get a user data directory.
-  if (!PathService::Get(brightray::DIR_USER_DATA, &user_data_dir)) {
-    brave::GetDefaultUserDataDirectory(&user_data_dir);
-    PathService::OverrideAndCreateIfNeeded(brightray::DIR_USER_DATA,
-            user_data_dir, false, true);
+  // Warn and fail early if the process fails to get a user data directory.
+  if (user_data_dir.empty() ||
+      !PathService::OverrideAndCreateIfNeeded(chrome::DIR_USER_DATA,
+          user_data_dir, false, true)) {
+    std::string process_type =
+      command_line.GetSwitchValueASCII(switches::kProcessType);
+    // The browser process (which is identified by an empty |process_type|) will
+    // handle the error later; other processes that need the dir crash here.
+    CHECK(process_type.empty()) << "Unable to get the user data directory "
+                                << "for process type: " << process_type;
   }
-  PathService::Override(chrome::DIR_USER_DATA, user_data_dir);
 
+#if defined(OS_POSIX)
   // Setup NativeMessagingHosts to point to the default Chrome locations
   // because that's where native apps will create them
-#if defined(OS_POSIX)
-  base::FilePath default_user_data_dir;
-  brave::GetDefaultUserDataDirectory(&default_user_data_dir);
-  std::vector<base::FilePath::StringType> components;
-  default_user_data_dir.GetComponents(&components);
-  // remove "brave"
-  components.pop_back();
-  base::FilePath chrome_user_data_dir(FILE_PATH_LITERAL("/"));
-  for (std::vector<base::FilePath::StringType>::iterator i =
-           components.begin() + 1; i != components.end(); ++i) {
-    chrome_user_data_dir = chrome_user_data_dir.Append(*i);
-  }
+  base::FilePath chrome_user_data_dir;
+  base::FilePath native_messaging_dir;
+#if defined(OS_MACOSX)
+  PathService::Get(base::DIR_APP_DATA, &chrome_user_data_dir);
   chrome_user_data_dir = chrome_user_data_dir.Append("Google/Chrome");
+  native_messaging_dir = base::FilePath(FILE_PATH_LITERAL(
+      "/Library/Google/Chrome/NativeMessagingHosts"));
+#else
+  chrome::GetDefaultUserDataDirectory(&chrome_user_data_dir);
+  native_messaging_dir = base::FilePath(FILE_PATH_LITERAL(
+      "/etc/opt/chrome/native-messaging-hosts"));
+#endif  // defined(OS_MACOSX)
   PathService::OverrideAndCreateIfNeeded(
       chrome::DIR_USER_NATIVE_MESSAGING,
       chrome_user_data_dir.Append(FILE_PATH_LITERAL("NativeMessagingHosts")),
       false, true);
-
-  base::FilePath native_messaging_dir;
-#if defined(OS_MACOSX)
-  native_messaging_dir = base::FilePath(FILE_PATH_LITERAL(
-      "/Library/Google/Chrome/NativeMessagingHosts"));
-#else
-  native_messaging_dir = base::FilePath(FILE_PATH_LITERAL(
-      "/etc/opt/chrome/native-messaging-hosts"));
-#endif  // !defined(OS_MACOSX)
   PathService::OverrideAndCreateIfNeeded(chrome::DIR_NATIVE_MESSAGING,
       native_messaging_dir, false, true);
-#endif  // defined(OS_POSIX)
-
+#endif  // OS_POSIX
   return user_data_dir;
 }
 
@@ -240,7 +238,15 @@ bool AtomMainDelegate::BasicStartupComplete(int* exit_code) {
   // there have more impact.
   const bool is_browser = !command_line->HasSwitch(switches::kProcessType);
   ObjcEvilDoers::ZombieEnable(true, is_browser ? 10000 : 1000);
+
+  SetUpBundleOverrides();
+  chrome::common::mac::EnableCFBundleBlocker();
 #endif
+
+#if !defined(CHROME_MULTIPLE_DLL_BROWSER)
+  ChildProfiling::ProcessStarted();
+#endif
+  Profiling::ProcessStarted();
 
   base::trace_event::TraceLog::GetInstance()->SetArgumentFilterPredicate(
       base::Bind(&IsTraceEventArgsWhitelisted));
@@ -264,24 +270,10 @@ bool AtomMainDelegate::BasicStartupComplete(int* exit_code) {
   ContentSettingsPattern::SetNonWildcardDomainNonPortScheme(
       extensions::kExtensionScheme);
 
-#if defined(OS_MACOSX)
-  SetUpBundleOverrides();
-#endif
-
   return brightray::MainDelegate::BasicStartupComplete(exit_code);
 }
 
 void AtomMainDelegate::PreSandboxStartup() {
-  brightray::MainDelegate::PreSandboxStartup();
-
-  auto command_line = base::CommandLine::ForCurrentProcess();
-  std::string process_type = command_line->GetSwitchValueASCII(
-      ::switches::kProcessType);
-
-#if defined(OS_POSIX)
-  // crash_reporter::SetCrashReporterClient(g_chrome_crash_client.Pointer());
-#endif
-
 #if defined(OS_MACOSX)
 #ifdef DEBUG
   // disable os crash dumps in debug mode because they take forever
@@ -291,7 +283,7 @@ void AtomMainDelegate::PreSandboxStartup() {
 #endif
 
 #if defined(OS_WIN)
-  child_process_logging::Init();
+  install_static::InitializeProcessType();
 #endif
 
   base::FilePath path = InitializeUserDataDir();
@@ -303,9 +295,15 @@ void AtomMainDelegate::PreSandboxStartup() {
         path.Append(FILE_PATH_LITERAL("Extensions")), false, true);
   }
 
+  auto command_line = base::CommandLine::ForCurrentProcess();
+  std::string process_type =
+      command_line->GetSwitchValueASCII(::switches::kProcessType);
+
 #if !defined(OS_WIN)
   // For windows we call InitLogging when the sandbox is initialized.
   InitLogging(process_type);
+#else
+  child_process_logging::Init();
 #endif
 
   // Set google API key.
@@ -322,39 +320,23 @@ void AtomMainDelegate::PreSandboxStartup() {
   }
 #endif
 
-#if defined(OS_POSIX) && !defined(OS_MACOSX)
-  // Zygote needs to call InitCrashReporter() in RunZygote().
-  if (process_type != switches::kZygoteProcess) {
-//    breakpad::InitCrashReporter(process_type);
-  }
-#endif  // defined(OS_POSIX) && !defined(OS_MACOSX)
-
-  // Only append arguments for browser process.
-  if (!IsBrowserProcess(command_line))
-    return;
-
 #if defined(OS_LINUX)
-  // Disable setuid sandbox
-  command_line->AppendSwitch(::switches::kDisableSetuidSandbox);
+  if (!IsBrowserProcess(command_line)) {
+    // Disable setuid sandbox
+    command_line->AppendSwitch(::switches::kDisableSetuidSandbox);
+  }
 #endif
 
-#if defined(OS_WIN)
-  install_static::InitializeProcessType();
-#endif
+  brightray::MainDelegate::PreSandboxStartup();
 }
 
 #if defined(OS_POSIX) && !defined(OS_MACOSX)
 void AtomMainDelegate::ZygoteForked() {
-  const base::CommandLine* command_line =
-      base::CommandLine::ForCurrentProcess();
-  if (command_line->HasSwitch(
-          switches::kEnableCrashReporter)) {
-    std::string process_type =
-        command_line->GetSwitchValueASCII(
-            switches::kProcessType);
-    // breakpad::InitCrashReporter(process_type);
-    // Reset the command line for the newly spawned process.
-    crash_keys::SetCrashKeysFromCommandLine(*command_line);
+  ChildProfiling::ProcessStarted();
+  Profiling::ProcessStarted();
+  if (Profiling::BeingProfiled()) {
+    base::debug::RestartProfilingAfterFork();
+    SetUpProfilingShutdownHandler();
   }
 }
 #endif

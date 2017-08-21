@@ -106,6 +106,7 @@ source_set("browser") {
     ":web_data",
     "chrome/browser/safe_browsing",
     "//electron/brave/browser:tab_manager",
+    "//base",
     "//chrome/common",
     "//chrome/utility",
     "//components/certificate_transparency",
@@ -115,6 +116,7 @@ source_set("browser") {
     "//components/spellcheck:build_features",
     "//components/storage_monitor",
     "//content/public/browser",
+    "//content/public/common:static_switches",
     "//electron/atom/browser",
   ]
 
