@@ -96,7 +96,7 @@ int main(int argc, const char* argv[]) {
 #if defined(OS_WIN) || defined(OS_MACOSX)
     PathService::Get(base::DIR_APP_DATA, &user_data_dir);
 #else
-    user_data_dir = GetXDGDirectory(env.get(),
+    user_data_dir = base::nix::GetXDGDirectory(environment.get(),
                                     base::nix::kXdgConfigHomeEnvVar,
                                     base::nix::kDotConfigDir);
 #endif

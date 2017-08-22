@@ -109,10 +109,9 @@ void MuonCrashReporterClient::InitCrashReporting() {
 
   auto command_line = base::CommandLine::ForCurrentProcess();
 
-#if defined(OS_MACOSX)
   std::string process_type = command_line->GetSwitchValueASCII(
       ::switches::kProcessType);
-
+#if defined(OS_MACOSX)
   const bool install_from_dmg_relauncher_process =
       process_type == switches::kRelauncherProcess &&
       command_line->HasSwitch(switches::kRelauncherProcessDMGDevice);
