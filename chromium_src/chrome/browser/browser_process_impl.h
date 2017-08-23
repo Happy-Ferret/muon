@@ -21,6 +21,7 @@
 #include "base/threading/thread_checker.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
+#include "components/prefs/pref_change_registrar.h"
 #include "extensions/features/features.h"
 #include "net/log/net_log.h"
 
@@ -148,9 +149,12 @@ class BrowserProcessImpl : public BrowserProcess {
   void CreateLocalState();
   void CreateProfileManager();
   void CreateStatusTray();
+  void ApplyMetricsReportingPolicy();
 
 
   const scoped_refptr<base::SequencedTaskRunner> local_state_task_runner_;
+  PrefChangeRegistrar pref_change_registrar_;
+
   bool tearing_down_;
   bool created_profile_manager_;
   bool created_local_state_;

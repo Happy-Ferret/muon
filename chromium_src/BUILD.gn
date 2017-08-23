@@ -158,7 +158,6 @@ source_set("browser") {
     "//components/spellcheck:build_features",
     "//components/storage_monitor",
     "//content/public/browser",
-    "//content/public/common:static_switches",
     "//electron/atom/browser",
   ]
 

@@ -17,6 +17,7 @@
 #include "brave/browser/memory/guest_tab_manager.h"
 #include "chrome/browser/background/background_mode_manager.h"
 #include "chrome/browser/browser_shutdown.h"
+#include "chrome/browser/metrics/chrome_metrics_service_accessor.h"
 #include "chrome/browser/prefs/chrome_command_line_pref_store.h"
 #include "chrome/browser/printing/print_job_manager.h"
 #include "chrome/browser/profiles/profile_manager.h"
@@ -24,6 +25,7 @@
 #include "chrome/browser/status_icons/status_tray.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_paths.h"
+#include "chrome/installer/util/google_update_settings.h"
 #include "components/component_updater/component_updater_service.h"
 #include "components/metrics/metrics_pref_names.h"
 #include "components/password_manager/core/browser/password_manager.h"
@@ -98,6 +100,7 @@ BrowserProcessImpl::BrowserProcessImpl(
 }
 
 BrowserProcessImpl::~BrowserProcessImpl() {
+  pref_change_registrar_.RemoveAll();
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   extensions::ExtensionsBrowserClient::Set(nullptr);
 #endif
@@ -230,6 +233,12 @@ void BrowserProcessImpl::CreateLocalState() {
                         local_state_task_runner_.get(),
                         std::unique_ptr<PrefFilter>()));
   local_state_ = factory.Create(pref_registry.get());
+
+  pref_change_registrar_.Init(local_state_.get());
+  pref_change_registrar_.Add(
+    metrics::prefs::kMetricsReportingEnabled,
+    base::Bind(&BrowserProcessImpl::ApplyMetricsReportingPolicy,
+               base::Unretained(this)));
 }
 
 bool BrowserProcessImpl::created_local_state() const {
@@ -269,6 +278,8 @@ void BrowserProcessImpl::PreCreateThreads() {
 
 void BrowserProcessImpl::PreMainMessageLoopRun() {
   TRACE_EVENT0("startup", "BrowserProcessImpl::PreMainMessageLoopRun");
+
+  ApplyMetricsReportingPolicy();
 
 #if BUILDFLAG(ENABLE_PLUGINS)
   PluginService* plugin_service = PluginService::GetInstance();
@@ -623,6 +634,14 @@ physical_web::PhysicalWebDataSource*
 BrowserProcessImpl::GetPhysicalWebDataSource() {
   NOTIMPLEMENTED();
   return nullptr;
+}
+
+void BrowserProcessImpl::ApplyMetricsReportingPolicy() {
+  CHECK(content::BrowserThread::PostTask(
+      content::BrowserThread::FILE, FROM_HERE,
+      base::BindOnce(
+          base::IgnoreResult(&GoogleUpdateSettings::SetCollectStatsConsent),
+          ChromeMetricsServiceAccessor::IsMetricsAndCrashReportingEnabled())));
 }
 
 #if (defined(OS_WIN) || defined(OS_LINUX)) && !defined(OS_CHROMEOS)

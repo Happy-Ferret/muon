@@ -46,7 +46,6 @@ class MuonCrashReporterClient : public ChromeCrashReporterClient {
 
  private:
   MuonCrashReporterClient();
-  static bool IsCrashReportingEnabled();
   static void SetCrashReportingEnabledForProcess(bool enabled);
 
   DISALLOW_COPY_AND_ASSIGN(MuonCrashReporterClient);
