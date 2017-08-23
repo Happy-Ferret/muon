@@ -801,7 +801,14 @@ source_set("metrics") {
     "//chrome/browser/metrics/thread_watcher.h",
     "//chrome/browser/metrics/thread_watcher_report_hang.cc",
     "//chrome/browser/metrics/thread_watcher_report_hang.h",
+    "//chrome/browser/google/google_update_settings_posix.cc",
   ]
+
+  if (is_win) {
+    sources += [
+      "chrome/installer/util/google_update_settings.cc",
+    ]
+  }
 
   deps = [
     "//base",
