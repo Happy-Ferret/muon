@@ -6,11 +6,14 @@
 
 #include "base/memory/ptr_util.h"
 #include "build/build_config.h"
+#include "chrome/browser/browser_process_impl.h"
 #include "chrome/browser/chrome_notification_types.h"
+#include "components/metrics/metrics_service.h"
 #include "content/public/browser/notification_service.h"
 
 ChromeMetricsServiceClient::ChromeMetricsServiceClient(
-    metrics::MetricsStateManager* state_manager) {
+    metrics::MetricsStateManager* state_manager)
+    : metrics_state_manager_(state_manager) {
   RegisterForNotifications();
 }
 
@@ -19,8 +22,20 @@ ChromeMetricsServiceClient::~ChromeMetricsServiceClient() {}
 // static
 std::unique_ptr<ChromeMetricsServiceClient> ChromeMetricsServiceClient::Create(
     metrics::MetricsStateManager* state_manager) {
-  return std::unique_ptr<ChromeMetricsServiceClient>(
+  // Perform two-phase initialization so that |client->metrics_service_| only
+  // receives pointers to fully constructed objects.
+  std::unique_ptr<ChromeMetricsServiceClient> client(
       new ChromeMetricsServiceClient(state_manager));
+  client->Initialize();
+
+  return client;
+}
+
+void ChromeMetricsServiceClient::Initialize() {
+  PrefService* local_state = g_browser_process->local_state();
+
+  metrics_service_.reset(
+      new metrics::MetricsService(metrics_state_manager_, this, local_state));
 }
 
 // static
@@ -44,6 +59,7 @@ void ChromeMetricsServiceClient::Observe(
     const content::NotificationDetails& details) {
   switch (type) {
     case chrome::NOTIFICATION_BROWSER_OPENED:
+      metrics_service_->OnApplicationNotIdle();
     case chrome::NOTIFICATION_PROFILE_ADDED:
     case chrome::NOTIFICATION_PROFILE_DESTROYED:
       // May have closed last incognito window.

@@ -60,6 +60,7 @@ class ChromeMetricsServiceClient : public metrics::MetricsServiceClient,
  private:
   explicit ChromeMetricsServiceClient(
       metrics::MetricsStateManager* state_manager);
+  void Initialize();
   // Registers |this| as an observer for notifications which indicate that a
   // user is performing work. This is useful to allow some features to sleep,
   // until the machine becomes active, such as precluding UMA uploads unless
@@ -70,6 +71,11 @@ class ChromeMetricsServiceClient : public metrics::MetricsServiceClient,
   void Observe(int type,
                const content::NotificationSource& source,
                const content::NotificationDetails& details) override;
+
+  // Weak pointer to the MetricsStateManager.
+  metrics::MetricsStateManager* metrics_state_manager_;
+
+  std::unique_ptr<metrics::MetricsService> metrics_service_;
 
   content::NotificationRegistrar registrar_;
 
