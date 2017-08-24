@@ -76,7 +76,7 @@ class BrowserProcessImpl : public BrowserProcess {
   atom::api::App* app() { return app_; }
 
   void ResourceDispatcherHostCreated() override;
-  metrics::MetricsService* metrics_service() override { return NULL; };
+  metrics::MetricsService* metrics_service() override;
   PrefService* local_state() override;
   ProfileManager* profile_manager() override;
   ukm::UkmRecorder* ukm_recorder() override;
@@ -151,6 +151,8 @@ class BrowserProcessImpl : public BrowserProcess {
   void CreateStatusTray();
   void ApplyMetricsReportingPolicy();
 
+  std::unique_ptr<metrics_services_manager::MetricsServicesManager>
+      metrics_services_manager_;
 
   const scoped_refptr<base::SequencedTaskRunner> local_state_task_runner_;
   PrefChangeRegistrar pref_change_registrar_;

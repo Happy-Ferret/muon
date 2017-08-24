@@ -18,6 +18,7 @@
 #include "chrome/browser/background/background_mode_manager.h"
 #include "chrome/browser/browser_shutdown.h"
 #include "chrome/browser/metrics/chrome_metrics_service_accessor.h"
+#include "chrome/browser/metrics/chrome_metrics_services_manager_client.h"
 #include "chrome/browser/prefs/chrome_command_line_pref_store.h"
 #include "chrome/browser/printing/print_job_manager.h"
 #include "chrome/browser/profiles/profile_manager.h"
@@ -27,6 +28,7 @@
 #include "chrome/common/chrome_paths.h"
 #include "chrome/installer/util/google_update_settings.h"
 #include "components/component_updater/component_updater_service.h"
+#include "components/metrics_services_manager/metrics_services_manager.h"
 #include "components/metrics/metrics_pref_names.h"
 #include "components/password_manager/core/browser/password_manager.h"
 #include "components/prefs/json_pref_store.h"
@@ -454,8 +456,19 @@ net_log::ChromeNetLog* BrowserProcessImpl::net_log() {
 
 metrics_services_manager::MetricsServicesManager*
 BrowserProcessImpl::GetMetricsServicesManager() {
-  NOTIMPLEMENTED();
-  return nullptr;
+  DCHECK(thread_checker_.CalledOnValidThread());
+  if (!metrics_services_manager_) {
+    metrics_services_manager_.reset(
+        new metrics_services_manager::MetricsServicesManager(
+            base::MakeUnique<ChromeMetricsServicesManagerClient>(
+                local_state())));
+  }
+  return metrics_services_manager_.get();
+}
+
+metrics::MetricsService* BrowserProcessImpl::metrics_service() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  return GetMetricsServicesManager()->GetMetricsService();
 }
 
 net::URLRequestContextGetter* BrowserProcessImpl::system_request_context() {

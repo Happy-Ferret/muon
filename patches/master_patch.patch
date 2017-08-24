@@ -803,6 +803,41 @@ index b5f779d03cfec8ce1db9354d85020acaa10c3a5b..04db5469f8b3705bbf0c36fe6eef5ce1
    // This environment variable should be set on Windows Vista and later
    // (https://msdn.microsoft.com/library/windows/desktop/dd378457.aspx).
    std::wstring user_data_dir = GetEnvironmentString16(L"LOCALAPPDATA");
+diff --git a/chrome/installer/util/browser_distribution.cc b/chrome/installer/util/browser_distribution.cc
+index ac6a3e41ef2c4e82eab088b39abc0d17c4db0f0e..5149d6638b5146d8dc21aed5cc508d613c26fd69 100644
+--- a/chrome/installer/util/browser_distribution.cc
++++ b/chrome/installer/util/browser_distribution.cc
+@@ -20,6 +20,10 @@
+ #include "chrome/installer/util/l10n_string_util.h"
+ #include "chrome/installer/util/non_updating_app_registration_data.h"
+ 
++#if !defined(MUON_CHROMIUM_BUILD)
++#include "chrome/installer/util/muon_distribution.h"
++#endif
++
+ namespace {
+ 
+ // The BrowserDistribution object is never freed.
+@@ -55,6 +59,7 @@ BrowserDistribution* BrowserDistribution::GetOrCreateBrowserDistribution(
+ BrowserDistribution* BrowserDistribution::GetDistribution() {
+   BrowserDistribution* dist = NULL;
+ 
++#if defined(MUON_CHROMIUM_BUILD)
+ #if defined(GOOGLE_CHROME_BUILD)
+   dist = GetOrCreateBrowserDistribution<GoogleChromeDistribution>(
+       &g_browser_distribution);
+@@ -62,7 +67,10 @@ BrowserDistribution* BrowserDistribution::GetDistribution() {
+   dist = GetOrCreateBrowserDistribution<BrowserDistribution>(
+       &g_browser_distribution);
+ #endif
+-
++#else
++  dist = GetOrCreateBrowserDistribution<MuonDistribution>(
++      &g_browser_distribution);
++#endif
+   return dist;
+ }
+ 
 diff --git a/chrome/installer/util/prebuild/create_string_rc.py b/chrome/installer/util/prebuild/create_string_rc.py
 index ce885e05e62af97777314397c79d1f05aa0dc36a..c2b8a35bfdbd6a23ce288b2007dcb8ce7fee8657 100755
 --- a/chrome/installer/util/prebuild/create_string_rc.py
