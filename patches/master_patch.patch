@@ -46,6 +46,19 @@ index e9f801778ea0edf81a316d7eeb0a9c436c3cadcd..9a84622797d063d206c3eb25d09e09bb
    // END ALLOWED USAGE.
    // BEGIN USAGE THAT NEEDS TO BE FIXED.
    friend class ::chromeos::BlockingMethodCaller;  // http://crbug.com/125360
+diff --git a/build/config/BUILD.gn b/build/config/BUILD.gn
+index aff0e3d9d360a7248158fcf45a65fadcc479d7ac..8b58600e7ae3ebdefba2bcd3591ed155d74113fb 100644
+--- a/build/config/BUILD.gn
++++ b/build/config/BUILD.gn
+@@ -52,6 +52,8 @@ config("feature_flags") {
+   defines = [ "V8_DEPRECATION_WARNINGS" ]
+   if (dcheck_always_on) {
+     defines += [ "DCHECK_ALWAYS_ON=1" ]
++  } else {
++    defines += [ "DCHECK_ALWAYS_ON=0" ]
+   }
+   if (use_udev) {
+     # TODO(brettw) should probably be "=1".
 diff --git a/build/config/BUILDCONFIG.gn b/build/config/BUILDCONFIG.gn
 index fa4ec72c87c2ffe25353ab9e750cc2fd63c934e4..fa31891e545d9c8578ed2f052223789139b64e55 100644
 --- a/build/config/BUILDCONFIG.gn

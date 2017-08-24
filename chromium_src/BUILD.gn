@@ -795,28 +795,36 @@ source_set("metrics") {
   sources = [
     "//chrome/browser/metrics/chrome_metrics_service_accessor.cc",
     "//chrome/browser/metrics/chrome_metrics_service_accessor.h",
+    "//chrome/browser/metrics/chrome_metrics_service_client.cc",
+    "//chrome/browser/metrics/chrome_metrics_service_client.h",
+    "//chrome/browser/metrics/chrome_metrics_services_manager_client.cc",
+    "//chrome/browser/metrics/chrome_metrics_services_manager_client.h",
     "//chrome/browser/metrics/metrics_reporting_state.cc",
     "//chrome/browser/metrics/metrics_reporting_state.h",
     "//chrome/browser/metrics/thread_watcher.cc",
     "//chrome/browser/metrics/thread_watcher.h",
     "//chrome/browser/metrics/thread_watcher_report_hang.cc",
     "//chrome/browser/metrics/thread_watcher_report_hang.h",
+    "//chrome/installer/util/google_update_settings.h",
     "//chrome/browser/google/google_update_settings_posix.cc",
   ]
 
   if (is_win) {
     sources += [
-      "chrome/installer/util/google_update_settings.cc",
+      "chrome/installer/util/muon_distribution.cc",
+      "chrome/installer/util/muon_distribution.h",
     ]
   }
 
   deps = [
     "//base",
+    "//chrome/browser/metrics/variations:chrome_ui_string_overrider_factory",
     "//chrome/common",
     "//components/metrics",
     "//components/metrics_services_manager",
     "//components/version_info",
     "//content/public/browser",
+    "//third_party/crashpad/crashpad/client:client",
   ]
 }
 
