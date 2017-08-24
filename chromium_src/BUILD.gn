@@ -795,8 +795,8 @@ source_set("metrics") {
   sources = [
     "//chrome/browser/metrics/chrome_metrics_service_accessor.cc",
     "//chrome/browser/metrics/chrome_metrics_service_accessor.h",
-    "//chrome/browser/metrics/chrome_metrics_service_client.cc",
-    "//chrome/browser/metrics/chrome_metrics_service_client.h",
+    "chrome/browser/metrics/chrome_metrics_service_client.cc",
+    "chrome/browser/metrics/chrome_metrics_service_client.h",
     "//chrome/browser/metrics/chrome_metrics_services_manager_client.cc",
     "//chrome/browser/metrics/chrome_metrics_services_manager_client.h",
     "//chrome/browser/metrics/metrics_reporting_state.cc",
@@ -805,6 +805,9 @@ source_set("metrics") {
     "//chrome/browser/metrics/thread_watcher.h",
     "//chrome/browser/metrics/thread_watcher_report_hang.cc",
     "//chrome/browser/metrics/thread_watcher_report_hang.h",
+    "chrome/browser/metrics/variations/chrome_variations_service_client.cc",
+    "//chrome/browser/metrics/variations/chrome_variations_service_client.h",
+
     "//chrome/installer/util/google_update_settings.h",
     "//chrome/browser/google/google_update_settings_posix.cc",
   ]
