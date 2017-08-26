@@ -70,3 +70,8 @@ void ChromeMetricsServiceClient::Observe(
       NOTREACHED();
   }
 }
+
+metrics::MetricsService* ChromeMetricsServiceClient::GetMetricsService() {
+  return metrics_service_.get();
+}
+

@@ -34,7 +34,7 @@ class ChromeMetricsServiceClient : public metrics::MetricsServiceClient,
   static bool IsMetricsReportingForceEnabled();
 
   // dummy implementation
-  metrics::MetricsService* GetMetricsService() override { return nullptr; }
+  metrics::MetricsService* GetMetricsService() override;
   void SetMetricsClientId(const std::string& client_id) override {}
   int32_t GetProduct() override { return 0; }
   std::string GetApplicationLocale() override { return ""; }
